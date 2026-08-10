@@ -231,7 +231,10 @@
           <p class="brand-sub" id="welcomeText">월별 매출 · 이익률 관리</p>
         </div>
       </div>
-      <button class="logout-btn" id="logoutBtn">로그아웃</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="back-btn" id="backToAdminFromMemberBtn" style="display:none;">‹ 관리자로</button>
+        <button class="logout-btn" id="logoutBtn">로그아웃</button>
+      </div>
     </div>
 
     <div class="tabs">
@@ -515,6 +518,16 @@
       <p class="detail-sub" id="detailSub">-</p>
     </div>
 
+    <div class="card">
+      <div class="card-title">계정 정보 수정</div>
+      <div class="form-row" style="margin-top:14px;">
+        <input class="input" id="acctIdInput" type="text" placeholder="아이디">
+        <input class="input" id="acctPwInput" type="text" placeholder="비밀번호">
+      </div>
+      <button class="add-btn" id="saveAccountBtn">계정 정보 저장</button>
+      <button class="detail-link" id="gotoMemberScreenBtn" style="margin-top:12px;">이 회원 화면으로 이동해서 직접 기재/수정하기 →</button>
+    </div>
+
     <div class="admin-set-card">
       <div class="section-title"><span class="section-badge existing">기존사업자 설정</span></div>
       <div style="height:14px"></div>
@@ -737,6 +750,7 @@
     loginError.textContent = '';
     currentUser = { id };
     welcomeText.textContent = id + '님 · 월별 매출 · 이익률 관리';
+    document.getElementById('backToAdminFromMemberBtn').style.display = 'none';
     hideAllScreens();
     mainScreen.classList.add('active');
     renderAll();
@@ -749,6 +763,26 @@
   document.getElementById('logoutBtn').addEventListener('click', showLogin);
   document.getElementById('adminLogoutBtn').addEventListener('click', showLogin);
   document.getElementById('detailLogoutBtn').addEventListener('click', showLogin);
+
+  function adminLoginAsMember(memberId){
+    const member = state.members.find(m=>m.id===memberId);
+    if(!member) return;
+    currentUser = { id: memberId, viaAdmin:true };
+    welcomeText.textContent = memberId + '님 화면 (관리자 보기) · 월별 매출 · 이익률 관리';
+    document.getElementById('backToAdminFromMemberBtn').style.display = 'inline-flex';
+    hideAllScreens();
+    mainScreen.classList.add('active');
+    renderAll();
+    loadFixedFormForMonth();
+    renderFixedList();
+    loadEntryFormForMonth();
+  }
+  document.getElementById('backToAdminFromMemberBtn').addEventListener('click', ()=>{
+    currentUser = { admin:true };
+    hideAllScreens();
+    adminScreen.classList.add('active');
+    renderAdmin();
+  });
 
   // tabs
   document.querySelectorAll('.tab').forEach(tab=>{
@@ -1430,19 +1464,42 @@
     emptyEl.style.display='none';
     listEl.innerHTML = state.members.map(m=>{
       const mEntries = state.entries.filter(e=>e.memberId===m.id);
+      const recentMonths = monthLabels.slice(-6);
+      const dots = recentMonths.map(mo=>{
+        const has = mEntries.some(e=>e.month===mo.key);
+        const color = has ? 'var(--good)' : 'var(--line)';
+        return `<span title="${mo.label} ${has?'등록완료':'미등록'}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:3px;border:1px solid rgba(0,0,0,.06);"></span>`;
+      }).join('');
+      const issuedCount = mEntries.filter(e=>e.issuedToExisting).length;
+      const issueColor = mEntries.length>0 && issuedCount===mEntries.length ? 'var(--good)' : (issuedCount>0 ? 'var(--brown-dark)' : 'var(--sub)');
       return `
         <div class="member-row" data-id="${m.id}">
           <div class="member-row-inner">
-            <div><div class="member-id">${m.id}</div><div class="member-meta">기재 ${mEntries.length}건</div></div>
-            <div class="member-right"><span class="member-count">${mEntries.length}건</span><button class="member-del" data-del="${m.id}">삭제</button></div>
+            <div style="min-width:0;">
+              <div class="member-id">${m.id}</div>
+              <div class="member-meta">기재 ${mEntries.length}건</div>
+              <div style="margin-top:6px;">${dots}</div>
+              <div style="font-size:12px;font-weight:700;color:${issueColor};margin-top:4px;">임대료 발행 ${issuedCount}/${mEntries.length}건</div>
+            </div>
+            <div class="member-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <span class="member-count">${mEntries.length}건</span>
+              <button class="detail-link" data-settings="${m.id}" style="margin-top:0;">설정</button>
+              <button class="member-del" data-del="${m.id}">삭제</button>
+            </div>
           </div>
         </div>
       `;
     }).join('');
     listEl.querySelectorAll('.member-row').forEach(row=>{
       row.addEventListener('click', (e)=>{
-        if(e.target.closest('.member-del')) return;
-        viewingMemberId = row.dataset.id;
+        if(e.target.closest('.member-del') || e.target.closest('[data-settings]')) return;
+        adminLoginAsMember(row.dataset.id);
+      });
+    });
+    listEl.querySelectorAll('[data-settings]').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        viewingMemberId = btn.dataset.settings;
         showMemberDetail(viewingMemberId);
       });
     });
@@ -1538,6 +1595,10 @@
     if(entries.length===0){ list.innerHTML=''; empty.style.display='block'; }
     else { empty.style.display='none'; list.innerHTML = entries.map(entryRowHTML).join(''); }
 
+    document.getElementById('acctIdInput').value = memberId;
+    const memberObj = state.members.find(m=>m.id===memberId);
+    document.getElementById('acctPwInput').value = memberObj ? memberObj.pw : '';
+
     const s = adminSettingsFor(memberId) || {};
     const ex = s.existing || {};
     const nw = s.new || {};
@@ -1558,6 +1619,34 @@
 
   ['set_ex_dep','set_nw_dep'].forEach(id=>{
     document.getElementById(id).addEventListener('input', (e)=>{ liveFormatNumber(e.target); });
+  });
+
+  document.getElementById('saveAccountBtn').addEventListener('click', async ()=>{
+    if(!viewingMemberId) return;
+    const newId = document.getElementById('acctIdInput').value.trim();
+    const newPw = document.getElementById('acctPwInput').value.trim();
+    if(!newId || !newPw){ showToast('아이디와 비밀번호를 입력해주세요'); return; }
+    if(newId === ADMIN_ID){ showToast('관리자 아이디는 사용할 수 없어요'); return; }
+    const oldId = viewingMemberId;
+    if(newId !== oldId && state.members.find(m=>m.id===newId)){ showToast('이미 존재하는 아이디예요'); return; }
+    const member = state.members.find(m=>m.id===oldId);
+    if(!member){ showToast('회원을 찾을 수 없어요'); return; }
+    member.id = newId;
+    member.pw = newPw;
+    if(newId !== oldId){
+      state.entries.forEach(e=>{ if(e.memberId===oldId) e.memberId = newId; });
+      state.fixedCosts.forEach(f=>{ if(f.memberId===oldId) f.memberId = newId; });
+      state.adminSettings.forEach(s=>{ if(s.memberId===oldId) s.memberId = newId; });
+      viewingMemberId = newId;
+    }
+    showToast('계정 정보가 저장되었습니다');
+    await saveState();
+    showMemberDetail(viewingMemberId);
+  });
+
+  document.getElementById('gotoMemberScreenBtn').addEventListener('click', ()=>{
+    if(!viewingMemberId) return;
+    adminLoginAsMember(viewingMemberId);
   });
 
   document.getElementById('saveMemberSettingsBtn').addEventListener('click', async ()=>{
