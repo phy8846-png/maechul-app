@@ -393,9 +393,7 @@
         <div class="biz-card-head"><span class="section-badge existing">기존사업자 이익</span></div>
         <div class="biz-rate-big" id="mExistingProfit">0원</div>
         <div class="biz-row"><span class="k">매출 (등록 기재값)</span><span class="v" id="mExistingRevenue">0원</span></div>
-        <div class="biz-row"><span class="k">기본비용</span><span class="v" id="mExistingCost">0원</span></div>
-        <div class="biz-row"><span class="k">신규사업자 매입</span><span class="v" id="mExistingPurchase">0원</span></div>
-        <div class="biz-row"><span class="k">총비용</span><span class="v" id="mExistingTotalCost">0원</span></div>
+        <div class="biz-row"><span class="k">기존사업자 원가비용전체</span><span class="v" id="mExistingCost">0원</span></div>
         <div class="biz-formula" id="mExistingFormula">매출금액 - 비용금액 = 이익금액</div>
       </div>
       <div class="biz-card">
@@ -658,15 +656,18 @@
       }
     }catch(e){
       console.error('불러오기 실패', e);
-      showToast('데이터 연결에 실패했습니다. 인터넷 연결 또는 설정을 확인하세요.');
+      alert('⚠️ 데이터를 불러오지 못했습니다.\n\n인터넷 연결 또는 Firebase 설정을 확인해주세요.\n\n(오류 내용: ' + (e && e.message ? e.message : e) + ')');
     }
   }
   async function saveState(){
     try{
       await stateDocRef.set(state);
+      return true;
     }catch(e){
       console.error('저장 실패', e);
-      showToast('저장에 실패했습니다. 인터넷 연결을 확인하세요.');
+      showToast('저장에 실패했습니다!');
+      alert('⚠️ 저장에 실패했습니다.\n\n입력하신 내용이 실제로는 저장되지 않았을 수 있습니다.\n인터넷 연결을 확인하시거나, 계속 이 문제가 발생하면 관리자에게 알려주세요.\n\n(오류 내용: ' + (e && e.message ? e.message : e) + ')');
+      return false;
     }
   }
 
@@ -921,7 +922,7 @@
       const calcRevenue = Math.round(revenue * ratio / 100);
       const netRevenue = revenue - calcRevenue;
       const cost = fixedTotal(currentUser.id, selectedMonth, 'existing', biz.key);
-      const profit = netRevenue - cost;
+      const profit = revenue - cost;
       businesses.push({ name: biz.key, revenue, ratio, calcRevenue, netRevenue, cost, profit });
       totalCalc += calcRevenue;
       totalExistingProfit += profit;
@@ -1357,10 +1358,7 @@
       document.getElementById('mExistingProfit').textContent = latest.existingProfit.toLocaleString()+'원';
       document.getElementById('mExistingRevenue').textContent = latest.existingRevenue.toLocaleString()+'원';
       document.getElementById('mExistingCost').textContent = latest.existingCost.toLocaleString()+'원';
-      document.getElementById('mExistingPurchase').textContent = latest.newRevenue.toLocaleString()+'원';
-      const existingTotalCost = latest.existingCost + latest.newRevenue;
-      document.getElementById('mExistingTotalCost').textContent = existingTotalCost.toLocaleString()+'원';
-      document.getElementById('mExistingFormula').innerHTML = `<b>${latest.existingRevenue.toLocaleString()}원</b> - <b>${existingTotalCost.toLocaleString()}원</b> = <b>${latest.existingProfit.toLocaleString()}원</b>`;
+      document.getElementById('mExistingFormula').innerHTML = `<b>${latest.existingRevenue.toLocaleString()}원</b> - <b>${latest.existingCost.toLocaleString()}원</b> = <b>${latest.existingProfit.toLocaleString()}원</b>`;
 
       document.getElementById('mNewRevenue').textContent = latest.newTotalRevenue.toLocaleString()+'원';
       document.getElementById('mNewCost').textContent = latest.cost.toLocaleString()+'원';
@@ -1374,7 +1372,7 @@
       document.getElementById('mIssueStatus').style.color = latest.issuedToExisting ? 'var(--brown-dark)' : 'var(--danger)';
     } else {
       monthlyReportTitle.textContent = '해당 월 분계내역';
-      ['mExistingProfit','mExistingRevenue','mExistingCost','mExistingPurchase','mExistingTotalCost','mNewRevenue','mNewCost','mNewProfit','mIssueRent','mIssueElectric','mIssueMachine'].forEach(id=>{
+      ['mExistingProfit','mExistingRevenue','mExistingCost','mNewRevenue','mNewCost','mNewProfit','mIssueRent','mIssueElectric','mIssueMachine'].forEach(id=>{
         document.getElementById(id).textContent = '0원';
       });
       document.getElementById('mIssueStatus').textContent = '-';
