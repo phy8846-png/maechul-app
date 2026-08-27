@@ -402,6 +402,7 @@
         <div class="biz-rate-big" id="mExistingProfit">0원</div>
         <div class="biz-row"><span class="k">매출 (등록 기재값)</span><span class="v" id="mExistingRevenue">0원</span></div>
         <div class="biz-row"><span class="k">기존사업자 원가비용전체</span><span class="v" id="mExistingCost">0원</span></div>
+        <div class="biz-row"><span class="k">신규사업자 매입</span><span class="v" id="mExistingNewPurchase">0원</span></div>
         <div class="biz-formula" id="mExistingFormula">매출금액 - 비용금액 = 이익금액</div>
       </div>
       <div class="biz-card">
@@ -910,6 +911,13 @@
     return rec && rec.fc_revenue ? rec.fc_revenue : 0;
   }
 
+  function autoNewPurchaseFor(memberId, month, bizName){
+    const rec = state.entries.find(e=>e.memberId===memberId && e.month===month);
+    if(!rec || !rec.businesses) return 0;
+    const biz = rec.businesses.find(x=>x.name===(bizName||''));
+    return biz ? (biz.calcRevenue||0) : 0;
+  }
+
   function loadEntryFormForMonth(){
     if(!currentUser || !currentUser.id) return;
     renderExistingRevenueList();
@@ -953,7 +961,7 @@
       const calcRevenue = Math.round(revenue * ratio / 100);
       const netRevenue = revenue - calcRevenue;
       const cost = fixedTotal(currentUser.id, selectedMonth, 'existing', biz.key);
-      const profit = revenue - cost;
+      const profit = revenue - cost - calcRevenue;
       businesses.push({ name: biz.key, revenue, ratio, calcRevenue, netRevenue, cost, profit });
       totalCalc += calcRevenue;
       totalExistingProfit += profit;
@@ -985,7 +993,7 @@
     }
 
     document.getElementById('existingProfitFormula').textContent =
-      `매출 ${b.totalExistingRevenueRaw.toLocaleString()}원 - 원가비용 ${b.totalExistingCost.toLocaleString()}원 = 수익`;
+      `매출 ${b.totalExistingRevenueRaw.toLocaleString()}원 - 원가비용 ${b.totalExistingCost.toLocaleString()}원 - 신규사업자매입 ${b.totalCalc.toLocaleString()}원 = 수익`;
     document.getElementById('existingProfitNumber').textContent = b.totalExistingProfit.toLocaleString() + '원';
 
     document.getElementById('newProfitFormula').textContent =
@@ -1111,14 +1119,22 @@
     {id:'fc_electric', label:'전기료'},
     {id:'fc_machine', label:'기계사용료'}
   ];
-  function fieldsFor(bizType){ return bizType==='new' ? fcFieldDefs.concat(fcNewOnlyFieldDefs) : fcFieldDefs; }
+  // 기존사업자에만 추가되는 항목 (등록 탭의 '계산된 매출'과 자동 연동, 참고용 표시)
+  const fcExistingOnlyFieldDefs = [
+    {id:'fc_new_purchase', label:'신규사업자 매입', auto:true, highlight:true}
+  ];
+  function fieldsFor(bizType){
+    if(bizType==='new') return fcFieldDefs.concat(fcNewOnlyFieldDefs);
+    return fcFieldDefs.concat(fcExistingOnlyFieldDefs);
+  }
 
   function buildFieldsHTML(bizType){
     return fieldsFor(bizType).map(f=>{
       const inputId = bizType+'__'+f.id;
       if(f.auto){
+        const autoNote = f.id==='fc_new_purchase' ? '등록 탭 연동 · 자동' : '관리자 기재 · 자동';
         return `
-          <div class="card-title">${f.label} <span class="muted">(관리자 기재 · 자동)</span></div>
+          <div class="card-title">${f.label} <span class="muted">(${autoNote})</span></div>
           <div class="amount-wrap">
             <input class="input" id="${inputId}" type="text" readonly placeholder="0">
             <span class="amount-unit">원</span>
@@ -1295,6 +1311,7 @@
       const el = document.getElementById('existing__'+f.id);
       if(f.id==='fc_depreciation'){ el.value = autoDepreciationMonthly(currentUser.id,'existing').toLocaleString(); }
       else if(f.id==='fc_interest'){ el.value = autoInterestMonthly(currentUser.id,'existing').toLocaleString(); }
+      else if(f.id==='fc_new_purchase'){ el.value = autoNewPurchaseFor(currentUser.id, selectedMonth, bizName).toLocaleString(); }
       else { el.value = recEx ? (recEx[f.id]||'') : ''; }
     });
     updateFixedTotal('existing');
@@ -1426,7 +1443,8 @@
       document.getElementById('mExistingProfit').textContent = latest.existingProfit.toLocaleString()+'원';
       document.getElementById('mExistingRevenue').textContent = latest.existingRevenue.toLocaleString()+'원';
       document.getElementById('mExistingCost').textContent = latest.existingCost.toLocaleString()+'원';
-      document.getElementById('mExistingFormula').innerHTML = `<b>${latest.existingRevenue.toLocaleString()}원</b> - <b>${latest.existingCost.toLocaleString()}원</b> = <b>${latest.existingProfit.toLocaleString()}원</b>`;
+      document.getElementById('mExistingNewPurchase').textContent = (latest.newRevenue||0).toLocaleString()+'원';
+      document.getElementById('mExistingFormula').innerHTML = `<b>${latest.existingRevenue.toLocaleString()}원</b> - <b>${latest.existingCost.toLocaleString()}원</b> - <b>${(latest.newRevenue||0).toLocaleString()}원</b> = <b>${latest.existingProfit.toLocaleString()}원</b>`;
 
       document.getElementById('mNewRevenue').textContent = latest.newTotalRevenue.toLocaleString()+'원';
       document.getElementById('mNewCost').textContent = latest.cost.toLocaleString()+'원';
@@ -1440,7 +1458,7 @@
       document.getElementById('mIssueStatus').style.color = latest.issuedToExisting ? 'var(--brown-dark)' : 'var(--danger)';
     } else {
       monthlyReportTitle.textContent = '해당 월 분계내역';
-      ['mExistingProfit','mExistingRevenue','mExistingCost','mNewRevenue','mNewCost','mNewProfit','mIssueRent','mIssueElectric','mIssueMachine'].forEach(id=>{
+      ['mExistingProfit','mExistingRevenue','mExistingCost','mExistingNewPurchase','mNewRevenue','mNewCost','mNewProfit','mIssueRent','mIssueElectric','mIssueMachine'].forEach(id=>{
         document.getElementById(id).textContent = '0원';
       });
       document.getElementById('mIssueStatus').textContent = '-';
