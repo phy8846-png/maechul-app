@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- saved from url=(0046)file:///C:/Users/ADMIN/Downloads/index_21.html -->
-<html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>매출분계</title>
 <style>
@@ -219,14 +219,14 @@
   .modal-title{font-size:16px; font-weight:800; margin:0 0 16px;}
   .modal-close{width:100%; padding:14px; border:none; border-radius:12px; background:#EFE9DC; color:var(--ink); font-size:14px; font-weight:700; cursor:pointer; margin-top:18px;}
 </style>
-<script src="./index_files/firebase-app-compat.js.다운로드"></script>
-<script src="./index_files/firebase-firestore-compat.js.다운로드"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div class="app" id="app">
 
   <!-- LOGIN SCREEN -->
-  <div class="login-screen" id="loginScreen" style="display: flex;">
+  <div class="login-screen" id="loginScreen">
     <div class="login-badge">매출<br>분계</div>
     <h1 class="login-title">매출분계</h1>
     <p class="login-sub">월별 매출 기재 및 이익률 산정</p>
@@ -277,7 +277,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div style="flex:1;min-width:0;">
             <div class="card-title">기재 월</div>
-            <select class="input" id="monthSelect"><option value="2025-9">2025년 9월</option><option value="2025-10">2025년 10월</option><option value="2025-11">2025년 11월</option><option value="2025-12">2025년 12월</option><option value="2026-1">2026년 1월</option><option value="2026-2">2026년 2월</option><option value="2026-3">2026년 3월</option><option value="2026-4">2026년 4월</option><option value="2026-5">2026년 5월</option><option value="2026-6">2026년 6월</option><option value="2026-7">2026년 7월</option><option value="2026-8">2026년 8월</option></select>
+            <select class="input" id="monthSelect"></select>
           </div>
           <div style="text-align:right;flex-shrink:0;">
             <div class="card-title" style="white-space:nowrap;">최근 등록</div>
@@ -362,7 +362,7 @@
     <div id="fixedTab" style="display:none;">
       <div class="card" style="background:var(--brown); text-align:center;">
         <div class="card-title" style="color:#fff; opacity:.85;">기재 월 <span style="font-weight:400;">(등록 탭에서 선택)</span></div>
-        <div id="fixedMonthDisplay" style="font-size:19px; font-weight:900; color:#fff; margin-top:4px;">2026년 7월</div>
+        <div id="fixedMonthDisplay" style="font-size:19px; font-weight:900; color:#fff; margin-top:4px;">-</div>
       </div>
 
       <div class="fc-card existing">
@@ -371,158 +371,12 @@
           <select class="input" id="existingBizSelect"></select>
           <button class="add-biz-btn" id="addBizBtn" type="button">+ 사업자 추가</button>
         </div>
-        <div id="existingFields">
-          <div class="card-title" style="font-size:15px;font-weight:900;">매출</div>
-          <div class="amount-wrap">
-            <input class="input" id="existing__fc_revenue" type="text" inputmode="numeric" placeholder="0" style="font-weight:800;">
-            <span class="amount-unit">원</span>
-          </div>
-          <div style="height:16px"></div>
-        
-        <div class="card-title">매입</div>
-        <div class="amount-wrap">
-          <input class="input" id="existing__fc_purchase" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-        <div class="card-title">총 인건비</div>
-        <div class="amount-wrap">
-          <input class="input" id="existing__fc_labor" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-          <div class="card-title">이자비용 <span class="muted">(관리자 기재 · 자동)</span></div>
-          <div class="amount-wrap">
-            <input class="input" id="existing__fc_interest" type="text" readonly="" placeholder="0">
-            <span class="amount-unit">원</span>
-          </div>
-          <button class="detail-link" data-interest-detail="existing">상세내역 보기</button>
-          <div style="height:14px"></div>
-        
-        <div class="card-title">공과금 전체 (전기료 등)</div>
-        <div class="amount-wrap">
-          <input class="input" id="existing__fc_utility" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-        <div class="card-title">임대료</div>
-        <div class="amount-wrap">
-          <input class="input" id="existing__fc_rent" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-          <div class="card-title">감가상각비 <span class="muted">(관리자 기재 · 자동)</span></div>
-          <div class="amount-wrap">
-            <input class="input" id="existing__fc_depreciation" type="text" readonly="" placeholder="0">
-            <span class="amount-unit">원</span>
-          </div>
-          
-          <div style="height:14px"></div>
-        
-        <div class="card-title">기타비용</div>
-        <div class="amount-wrap">
-          <input class="input" id="existing__fc_etc" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-          <div class="card-title">신규사업자 매입 <span class="muted">(등록 탭 연동 · 자동)</span></div>
-          <div class="amount-wrap">
-            <input class="input" id="existing__fc_new_purchase" type="text" readonly="" placeholder="0">
-            <span class="amount-unit">원</span>
-          </div>
-          
-          <div style="height:14px"></div>
-        
-      <div class="margin-preview">
-        <div class="margin-row"><span class="margin-label">기존사업자 비용 합계</span><span class="margin-value margin-rate" id="existing__total">0원</span></div>
-      </div>
-    </div>
+        <div id="existingFields"></div>
       </div>
 
       <div class="fc-card new">
         <div class="fc-card-title new">신규사업자</div>
-        <div id="newFields">
-          <div class="card-title" style="font-size:15px;font-weight:900;">매출</div>
-          <div class="amount-wrap">
-            <input class="input" id="new__fc_revenue" type="text" inputmode="numeric" placeholder="0" style="font-weight:800;">
-            <span class="amount-unit">원</span>
-          </div>
-          <div style="height:16px"></div>
-        
-        <div class="card-title">매입</div>
-        <div class="amount-wrap">
-          <input class="input" id="new__fc_purchase" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-        <div class="card-title">총 인건비</div>
-        <div class="amount-wrap">
-          <input class="input" id="new__fc_labor" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-          <div class="card-title">이자비용 <span class="muted">(관리자 기재 · 자동)</span></div>
-          <div class="amount-wrap">
-            <input class="input" id="new__fc_interest" type="text" readonly="" placeholder="0">
-            <span class="amount-unit">원</span>
-          </div>
-          <button class="detail-link" data-interest-detail="new">상세내역 보기</button>
-          <div style="height:14px"></div>
-        
-        <div class="card-title">공과금 전체 (전기료 등)</div>
-        <div class="amount-wrap">
-          <input class="input" id="new__fc_utility" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-        <div class="card-title">임대료</div>
-        <div class="amount-wrap">
-          <input class="input" id="new__fc_rent" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-          <div class="card-title">감가상각비 <span class="muted">(관리자 기재 · 자동)</span></div>
-          <div class="amount-wrap">
-            <input class="input" id="new__fc_depreciation" type="text" readonly="" placeholder="0">
-            <span class="amount-unit">원</span>
-          </div>
-          
-          <div style="height:14px"></div>
-        
-        <div class="card-title">기타비용</div>
-        <div class="amount-wrap">
-          <input class="input" id="new__fc_etc" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-        <div class="card-title">전기료</div>
-        <div class="amount-wrap">
-          <input class="input" id="new__fc_electric" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-        <div class="card-title">기계사용료</div>
-        <div class="amount-wrap">
-          <input class="input" id="new__fc_machine" type="text" inputmode="numeric" placeholder="0">
-          <span class="amount-unit">원</span>
-        </div>
-        <div style="height:14px"></div>
-      
-      <div class="margin-preview">
-        <div class="margin-row"><span class="margin-label">신규사업자 비용 합계</span><span class="margin-value margin-rate" id="new__total">0원</span></div>
-      </div>
-    </div>
+        <div id="newFields"></div>
       </div>
 
       <div style="margin:14px 24px 0;">
@@ -1977,6 +1831,5 @@
   })();
 })();
 </script>
-
-
-</body></html>
+</body>
+</html>
