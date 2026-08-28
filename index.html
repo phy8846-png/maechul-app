@@ -320,6 +320,7 @@
 
         <div style="height:18px"></div>
         <div class="card-title">발행계산서</div>
+        <div style="font-size:12.5px;color:var(--sub);margin:-8px 2px 10px;">기존사업자가 신규사업자에 계산서 발급 (신규사업자는 기존사업자에게 송금)</div>
         <div class="margin-preview" style="display:block;">
           <div class="margin-row">
             <span class="margin-label">임대료</span>
@@ -333,14 +334,10 @@
             <span class="margin-label">기계사용료</span>
             <span class="margin-value" id="issueMachineValue">0원</span>
           </div>
-          <div class="margin-row">
-            <span class="margin-label">기타</span>
-            <span class="margin-value" id="issueEtcValue">0원</span>
-          </div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;margin:10px 2px 0;cursor:pointer;">
           <input type="checkbox" id="issuedToExisting" style="width:18px;height:18px;">
-          <span style="font-size:14px;color:var(--brown-dark);">기존사업자로 발행 하였음</span>
+          <span style="font-size:14px;color:var(--brown-dark);">기존사업자에서 신규사업자로 발행하였음</span>
         </label>
 
         <div style="height:18px"></div>
@@ -920,7 +917,6 @@
     document.getElementById('issueRentValue').textContent = ((rec&&rec.fc_rent)||0).toLocaleString()+'원';
     document.getElementById('issueElectricValue').textContent = ((rec&&rec.fc_electric)||0).toLocaleString()+'원';
     document.getElementById('issueMachineValue').textContent = ((rec&&rec.fc_machine)||0).toLocaleString()+'원';
-    document.getElementById('issueEtcValue').textContent = ((rec&&rec.fc_etc)||0).toLocaleString()+'원';
   }
 
   function updateAutoCost(){
