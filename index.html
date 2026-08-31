@@ -863,6 +863,10 @@
   function fixedTotal(memberId, month, bizType, bizName){
     const rec = state.fixedCosts.find(f=> f.memberId===memberId && f.month===month && f.bizType===bizType && (bizType==='new' || f.bizName===bizName));
     if(!rec) return 0;
+    if(bizType==='existing'){
+      // 기존사업자 매입에는 공과금이 이미 포함되어 있어 중복 방지를 위해 매입에서 차감
+      return ((rec.fc_purchase||0)-(rec.fc_utility||0))+(rec.fc_labor||0)+(rec.fc_interest||0)+(rec.fc_rent||0)+(rec.fc_depreciation||0)+(rec.fc_etc||0);
+    }
     return (rec.fc_purchase||0)+(rec.fc_labor||0)+(rec.fc_interest||0)+(rec.fc_utility||0)+(rec.fc_rent||0)+(rec.fc_depreciation||0)+(rec.fc_etc||0)+(rec.fc_electric||0)+(rec.fc_machine||0);
   }
 
@@ -1136,7 +1140,7 @@
     {id:'fc_purchase', label:'매입'},
     {id:'fc_labor', label:'총 인건비'},
     {id:'fc_interest', label:'이자비용', auto:true},
-    {id:'fc_utility', label:'공과금 전체 (전기료 등)'},
+    {id:'fc_utility', label:'공과금 전체 (전기료+수도)'},
     {id:'fc_rent', label:'임대료'},
     {id:'fc_depreciation', label:'감가상각비', auto:true},
     {id:'fc_etc', label:'기타비용'}
@@ -1182,6 +1186,7 @@
       }
       return `
         <div class="card-title">${f.label}</div>
+        ${f.id==='fc_utility' && bizType==='existing' ? `<div style="font-size:11.5px;color:var(--sub);margin:-2px 2px 6px;">* 매입 금액에 공과금이 이미 포함되어 있어, 비용합계 계산 시 매입에서 이 금액만큼 자동으로 차감됩니다.</div>` : ''}
         <div class="amount-wrap">
           <input class="input" id="${inputId}" type="text" inputmode="numeric" placeholder="0">
           <span class="amount-unit">원</span>
@@ -1200,6 +1205,10 @@
   function updateFixedTotal(bizType){
     let total = 0;
     fieldsFor(bizType).forEach(f=>{ if(f.highlight) return; total += numVal(document.getElementById(bizType+'__'+f.id).value); });
+    if(bizType==='existing'){
+      // 기존사업자는 매입에 공과금이 이미 포함되어 있어 중복 방지를 위해 한 번 더 차감
+      total -= numVal(document.getElementById('existing__fc_utility').value);
+    }
     document.getElementById(bizType+'__total').textContent = total.toLocaleString() + '원';
   }
   ['existing','new'].forEach(bizType=>{
@@ -1391,7 +1400,8 @@
     if(records.length===0){ list.innerHTML=''; empty.style.display='block'; return; }
     empty.style.display='none';
     list.innerHTML = records.map(r=>{
-      const total = fieldsFor(r.bizType).reduce((s,f)=>{ if(f.highlight) return s; return s+(r[f.id]||0); },0);
+      let total = fieldsFor(r.bizType).reduce((s,f)=>{ if(f.highlight) return s; return s+(r[f.id]||0); },0);
+      if(r.bizType==='existing') total -= (r.fc_utility||0);
       const bizLabel = r.bizType==='existing' ? (r.bizName || '기존사업자') : '신규사업자';
       const extraDetail = r.bizType==='new' ? ` · 전기료 ${(r.fc_electric||0).toLocaleString()} · 기계사용료 ${(r.fc_machine||0).toLocaleString()}` : '';
       return `
