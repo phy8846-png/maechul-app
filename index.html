@@ -218,27 +218,9 @@
   @keyframes slideUp{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
   .modal-title{font-size:16px; font-weight:800; margin:0 0 16px;}
   .modal-close{width:100%; padding:14px; border:none; border-radius:12px; background:#EFE9DC; color:var(--ink); font-size:14px; font-weight:700; cursor:pointer; margin-top:18px;}
-
-  .kakao-share-wrap{margin:14px 24px 0;}
-  .kakao-share-btn{
-    width:100%;
-    padding:15px 16px;
-    border:none;
-    border-radius:14px;
-    background:#FEE500;
-    color:#191919;
-    font-size:14.5px;
-    font-weight:800;
-    cursor:pointer;
-    box-shadow:0 2px 10px -6px rgba(0,0,0,.18);
-    transition:transform .12s ease, opacity .15s ease;
-  }
-  .kakao-share-btn:active{transform:scale(.985);}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
-<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.8.3/kakao.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <div class="app" id="app">
@@ -507,10 +489,6 @@
       <div class="stat-card"><div class="stat-num" id="adminRate">0%</div><div class="stat-label">전체 평균 이익률</div></div>
     </div>
 
-    <div class="kakao-share-wrap">
-      <button class="kakao-share-btn" id="kakaoShareBtn" type="button">카카오톡으로 매출분계 안내 보내기</button>
-    </div>
-
     <div class="card">
       <div class="card-title">회원 계정 추가</div>
       <div class="form-row" style="margin-top:14px;">
@@ -668,56 +646,6 @@
 
 <script>
 (function(){
-  // ---------- Kakao Talk Share ----------
-  const KAKAO_JS_KEY = '248dcc5e700303baa29e06f0594955ea';
-  const MAECHUL_URL = 'https://phy8846-png.github.io/maechul-app/';
-  const KAKAO_SHARE_IMAGE = 'https://phy8846-png.github.io/maechul-app/share-card.png';
-
-  try {
-    if (window.Kakao && !Kakao.isInitialized()) {
-      Kakao.init(KAKAO_JS_KEY);
-    }
-  } catch (e) {
-    console.error('카카오 SDK 초기화 실패', e);
-  }
-
-  function shareMaechulByKakao() {
-    if (!window.Kakao) {
-      alert('카카오 공유 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-    try {
-      if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
-
-      Kakao.Share.sendDefault({
-        objectType: 'feed',
-        content: {
-          title: '매출분계 앱 관리 안내',
-          description: 'SBSC 중소기업경영지원센터 × 율산회계입니다.\n이번 달부터 매출분계 업무가 앱을 통해 관리됩니다.\n회계 검토 후 해당 월에 발행하실 계산서 금액을 안내드립니다.',
-          imageUrl: KAKAO_SHARE_IMAGE,
-          imageWidth: 800,
-          imageHeight: 400,
-          link: {
-            mobileWebUrl: MAECHUL_URL,
-            webUrl: MAECHUL_URL
-          }
-        },
-        buttons: [
-          {
-            title: '매출분계 확인하기',
-            link: {
-              mobileWebUrl: MAECHUL_URL,
-              webUrl: MAECHUL_URL
-            }
-          }
-        ]
-      });
-    } catch (e) {
-      console.error('카카오 공유 실패', e);
-      alert('카카오톡 공유를 시작하지 못했습니다. 카카오 Developers의 웹 도메인 설정과 JavaScript 키를 확인해주세요.');
-    }
-  }
-
   const ADMIN_ID = '1312';
   const ADMIN_PW = '1312';
 
@@ -737,6 +665,10 @@
   let state = { members: [], entries: [], fixedCosts: [], adminSettings: [] };
   let currentUser = null;
   let viewingMemberId = null;
+  // 안전장치: 최초 로딩에서 "진짜 기존 문서를 정상적으로 읽었음"이 확인되기 전까지는
+  // 절대 저장(덮어쓰기)하지 않는다 — 문서가 일시적으로 비어 보일 때 전체 데이터가
+  // 통째로 덮어써지는 사고를 막기 위한 장치.
+  let dataLoadConfirmed = false;
 
   async function loadState(){
     try{
@@ -747,13 +679,22 @@
         state.entries = parsed.entries || [];
         state.fixedCosts = parsed.fixedCosts || [];
         state.adminSettings = parsed.adminSettings || [];
+        dataLoadConfirmed = true;
+      } else {
+        dataLoadConfirmed = false;
+        alert('⚠️ 데이터베이스 문서를 찾을 수 없습니다.\n\n기존에 입력하신 데이터가 있었다면, 안전을 위해 지금은 아무것도 저장하지 않습니다.\n페이지를 새로고침해서 다시 시도해보시고, 계속 이 메시지가 뜨면 바로 관리자(개발 담당)에게 알려주세요.\n\n※ 이 상태에서는 어떤 입력도 저장되지 않습니다.');
       }
     }catch(e){
+      dataLoadConfirmed = false;
       console.error('불러오기 실패', e);
-      alert('⚠️ 데이터를 불러오지 못했습니다.\n\n인터넷 연결 또는 Firebase 설정을 확인해주세요.\n\n(오류 내용: ' + (e && e.message ? e.message : e) + ')');
+      alert('⚠️ 데이터를 불러오지 못했습니다.\n\n인터넷 연결 또는 Firebase 설정을 확인해주세요.\n이 상태에서는 안전을 위해 저장이 차단됩니다.\n\n(오류 내용: ' + (e && e.message ? e.message : e) + ')');
     }
   }
   async function saveState(){
+    if(!dataLoadConfirmed){
+      alert('⚠️ 저장이 차단되었습니다.\n\n데이터를 정상적으로 불러오지 못한 상태라, 실수로 기존 데이터를 덮어쓰는 것을 막기 위해 저장을 중단했습니다.\n페이지를 새로고침한 뒤 다시 시도해주세요. 계속 반복되면 관리자(개발 담당)에게 알려주세요.');
+      return false;
+    }
     try{
       await stateDocRef.set(state);
       return true;
@@ -1890,15 +1831,12 @@
     await saveState();
   });
 
-  const kakaoShareBtn = document.getElementById('kakaoShareBtn');
-  if(kakaoShareBtn){
-    kakaoShareBtn.addEventListener('click', shareMaechulByKakao);
-  }
-
   // ---------- init ----------
   (async function init(){
     await loadState();
-    if(!state.members.find(m=>m.id==='1234')){
+    // dataLoadConfirmed가 true일 때만(=실제로 기존 문서를 정상적으로 읽었을 때만) 샘플 계정을
+    // 추가 저장한다. 이러면 문서가 비어 보이는 비정상 상황에서는 절대 저장이 일어나지 않는다.
+    if(dataLoadConfirmed && !state.members.find(m=>m.id==='1234')){
       state.members.push({ id:'1234', pw:'1234', createdAt: Date.now(), existingTaxMode:'individual', existingTaxModeLocked:false });
       await saveState();
     }
