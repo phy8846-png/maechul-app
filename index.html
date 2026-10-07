@@ -203,6 +203,9 @@
   .loan-row-actions{display:flex;align-items:center;flex-shrink:0;}
   .loan-form-hint{font-size:11px;color:var(--sub);margin:-4px 2px 8px;}
   .loan-cancel-edit{border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;padding:8px 6px 0;width:100%;text-align:center;}
+  .loan-biz-section{margin-bottom:18px;padding-bottom:4px;}
+  .loan-biz-section:not(:last-child){border-bottom:1.5px dashed var(--line);padding-bottom:18px;}
+  .loan-biz-title{font-size:13px;font-weight:800;color:var(--brown-dark);margin-bottom:8px;}
   .loan-form{margin-top:10px;}
   .loan-total-box{margin-top:14px;background:#FBF6EC;border:1.5px dashed #E4D7BE;border-radius:12px;padding:14px 16px;}
 
@@ -547,26 +550,8 @@
 
       <div class="section-divider"></div>
       <div class="card-title" style="margin-bottom:12px;">대출 정보</div>
-      <div id="loanList_existing"></div>
-      <div class="loan-form">
-        <div class="form-row">
-          <input class="input" id="loanInst_existing" type="text" placeholder="대출 기관">
-        </div>
-        <div class="form-row">
-          <input class="input" id="loanAmt_existing" type="text" inputmode="numeric" placeholder="대출금 총액">
-          <input class="input" id="loanRate_existing" type="text" inputmode="decimal" placeholder="연 이자율(%)">
-        </div>
-        <div class="form-row">
-          <input class="input" id="loanMonthly_existing" type="text" inputmode="numeric" placeholder="월 이자 직접 기재 (선택)">
-        </div>
-        <div class="loan-form-hint">입력하면 대출금×이자율 계산 대신 이 금액을 월 이자로 바로 사용해요</div>
-        <button class="add-btn" type="button" id="addLoan_existing">+ 대출 추가</button>
-        <button class="loan-cancel-edit" type="button" id="cancelLoan_existing" style="display:none;">취소</button>
-      </div>
-      <div class="loan-total-box">
-        <div class="margin-row"><span class="margin-label">총 대출금액</span><span class="margin-value" id="loanTotalAmt_existing">0원</span></div>
-        <div class="margin-row"><span class="margin-label">총 이자 (연간)</span><span class="margin-value margin-rate" id="loanTotalInt_existing">0원</span></div>
-      </div>
+      <div style="font-size:11.5px;color:var(--sub);margin:-8px 2px 10px;">기존사업자가 여러 곳이면 각 사업자별로 대출/이자를 따로 기재해요</div>
+      <div id="loanSections_existing"></div>
     </div>
 
     <div class="admin-set-card">
@@ -1265,7 +1250,8 @@
   document.querySelectorAll('[data-interest-detail]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const bizType = btn.dataset.interestDetail;
-      openInterestModal(bizType);
+      const bizName = bizType==='existing' ? document.getElementById('existingBizSelect').value : undefined;
+      openInterestModal(bizType, bizName);
     });
   });
 
@@ -1273,9 +1259,25 @@
     return state.adminSettings.find(s=>s.memberId===memberId) || null;
   }
 
-  function loansFor(memberId, bizType){
+  function businessesForMember(memberId){
+    const m = state.members.find(x=>x.id===memberId);
+    return (m && m.existingBusinesses) || [];
+  }
+
+  // 기존사업자는 사업자별로 대출을 따로 관리한다 (loansByBiz: { 사업자명: [...] }).
+  // 예전 데이터(사업자 구분 없는 단일 loans 배열/단일 대출 필드)는 사업자가 1개 이하였던
+  // 시절 것이므로, 사업자가 없으면 '' 슬롯으로, 있으면 첫 사업자 슬롯으로 간주해 호환한다.
+  function loansFor(memberId, bizType, bizName){
     const s = adminSettingsFor(memberId);
     if(!s || !s[bizType]) return [];
+    if(bizType==='existing'){
+      const key = bizName || '';
+      if(s.existing.loansByBiz){ return s.existing.loansByBiz[key] || []; }
+      const businesses = businessesForMember(memberId);
+      const legacyKey = businesses.length>0 ? businesses[0] : '';
+      if(key !== legacyKey) return [];
+      // fall through to legacy single-pool formats below
+    }
     if(Array.isArray(s[bizType].loans)) return s[bizType].loans;
     // 이전 단일 대출 데이터 호환
     if(s[bizType].loanAmount || s[bizType].loanInstitution){
@@ -1295,8 +1297,8 @@
     if(l.monthly){ return l.monthly; }
     return (l.amount||0)*((l.rate||0)/100)/12;
   }
-  function autoInterestMonthly(memberId, bizType){
-    const loans = loansFor(memberId, bizType);
+  function autoInterestMonthly(memberId, bizType, bizName){
+    const loans = loansFor(memberId, bizType, bizName);
     const total = loans.reduce((sum,l)=> sum + loanMonthlyInterest(l), 0);
     return Math.round(total);
   }
@@ -1319,12 +1321,12 @@
   }
   const carryForwardFieldIds = ['fc_rent','fc_machine'];
 
-  function openInterestModal(bizType){
+  function openInterestModal(bizType, bizName){
     if(!currentUser || !currentUser.id) return;
-    const loans = loansFor(currentUser.id, bizType);
-    const label = bizType==='existing' ? '기존사업자' : '신규사업자';
+    const loans = loansFor(currentUser.id, bizType, bizName);
+    const label = bizType==='existing' ? (bizName || '기존사업자') : '신규사업자';
     document.getElementById('interestModalTitle').textContent = label + ' 이자비용 상세내역';
-    const monthly = autoInterestMonthly(currentUser.id, bizType);
+    const monthly = autoInterestMonthly(currentUser.id, bizType, bizName);
     if(loans.length===0){
       document.getElementById('interestModalBody').innerHTML = `<div class="empty-small">관리자가 아직 대출 정보를 기재하지 않았어요.</div>`;
     } else {
@@ -1413,7 +1415,7 @@
     fieldsFor('existing').forEach(f=>{
       const el = document.getElementById('existing__'+f.id);
       if(f.id==='fc_depreciation'){ el.value = autoDepreciationMonthly(currentUser.id,'existing').toLocaleString(); }
-      else if(f.id==='fc_interest'){ el.value = autoInterestMonthly(currentUser.id,'existing').toLocaleString(); }
+      else if(f.id==='fc_interest'){ el.value = autoInterestMonthly(currentUser.id,'existing',bizName).toLocaleString(); }
       else if(f.id==='fc_new_purchase'){ el.value = autoNewPurchaseFor(currentUser.id, selectedMonth, bizName).toLocaleString(); }
       else { el.value = recEx && recEx[f.id] ? recEx[f.id].toLocaleString() : ''; }
     });
@@ -1741,12 +1743,16 @@
     });
   }
 
-  let workingLoans = { existing: [], new: [] };
-  let editingLoanIdx = { existing: -1, new: -1 };
+  // 대출 폼은 "키" 단위로 관리한다. 신규사업자는 키가 'new' 하나뿐이고,
+  // 기존사업자는 사업자 수만큼 키가 생긴다 (existing_0, existing_1, ...).
+  let workingLoans = { new: [] };
+  let editingLoanIdx = { new: -1 };
+  let loanKeyMeta = { new: { bizType:'new', bizName:null } };
 
-  function renderLoanList(bizType){
-    const listEl = document.getElementById('loanList_'+bizType);
-    const loans = workingLoans[bizType];
+  function renderLoanList(key){
+    const listEl = document.getElementById('loanList_'+key);
+    if(!listEl) return;
+    const loans = workingLoans[key] || [];
     if(loans.length===0){
       listEl.innerHTML = `<div class="empty-small">등록된 대출이 없어요</div>`;
     } else {
@@ -1757,86 +1763,141 @@
             <div class="loan-row-meta">${(l.amount||0).toLocaleString()}원${l.monthly ? (' · 월 '+l.monthly.toLocaleString()+'원 직접기재') : (' · 연 '+(l.rate||0)+'%')}</div>
           </div>
           <div class="loan-row-actions">
-            <button class="loan-row-edit" data-loan-edit="${bizType}:${idx}">수정</button>
-            <button class="loan-row-del" data-loan-del="${bizType}:${idx}">삭제</button>
+            <button class="loan-row-edit" data-loan-edit="${key}:${idx}">수정</button>
+            <button class="loan-row-del" data-loan-del="${key}:${idx}">삭제</button>
           </div>
         </div>
       `).join('');
     }
     listEl.querySelectorAll('[data-loan-del]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        const [type, idxStr] = btn.dataset.loanDel.split(':');
+        const [k, idxStr] = btn.dataset.loanDel.split(':');
         const idx = parseInt(idxStr,10);
-        workingLoans[type].splice(idx,1);
-        if(editingLoanIdx[type]===idx){ cancelLoanEdit(type); }
-        renderLoanList(type);
-        updateLoanTotals(type);
+        workingLoans[k].splice(idx,1);
+        if(editingLoanIdx[k]===idx){ cancelLoanEdit(k); }
+        renderLoanList(k);
+        updateLoanTotals(k);
       });
     });
     listEl.querySelectorAll('[data-loan-edit]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        const [type, idxStr] = btn.dataset.loanEdit.split(':');
-        startLoanEdit(type, parseInt(idxStr,10));
+        const [k, idxStr] = btn.dataset.loanEdit.split(':');
+        startLoanEdit(k, parseInt(idxStr,10));
       });
     });
-    updateLoanTotals(bizType);
+    updateLoanTotals(key);
   }
 
-  function updateLoanTotals(bizType){
-    const loans = workingLoans[bizType];
+  function updateLoanTotals(key){
+    const loans = workingLoans[key] || [];
     const totalAmt = loans.reduce((s,l)=>s+(l.amount||0),0);
     const totalInt = loans.reduce((s,l)=>s+loanMonthlyInterest(l)*12,0);
-    document.getElementById('loanTotalAmt_'+bizType).textContent = totalAmt.toLocaleString()+'원';
-    document.getElementById('loanTotalInt_'+bizType).textContent = Math.round(totalInt).toLocaleString()+'원';
+    const amtEl = document.getElementById('loanTotalAmt_'+key);
+    const intEl = document.getElementById('loanTotalInt_'+key);
+    if(amtEl) amtEl.textContent = totalAmt.toLocaleString()+'원';
+    if(intEl) intEl.textContent = Math.round(totalInt).toLocaleString()+'원';
   }
 
-  function startLoanEdit(bizType, idx){
-    const l = workingLoans[bizType][idx];
+  function startLoanEdit(key, idx){
+    const l = (workingLoans[key]||[])[idx];
     if(!l) return;
-    editingLoanIdx[bizType] = idx;
-    document.getElementById('loanInst_'+bizType).value = l.institution || '';
-    document.getElementById('loanAmt_'+bizType).value = (l.amount||0) ? l.amount.toLocaleString() : '';
-    document.getElementById('loanRate_'+bizType).value = l.rate || '';
-    document.getElementById('loanMonthly_'+bizType).value = (l.monthly||0) ? l.monthly.toLocaleString() : '';
-    document.getElementById('addLoan_'+bizType).textContent = '수정 완료';
-    document.getElementById('cancelLoan_'+bizType).style.display = 'block';
+    editingLoanIdx[key] = idx;
+    document.getElementById('loanInst_'+key).value = l.institution || '';
+    document.getElementById('loanAmt_'+key).value = (l.amount||0) ? l.amount.toLocaleString() : '';
+    document.getElementById('loanRate_'+key).value = l.rate || '';
+    document.getElementById('loanMonthly_'+key).value = (l.monthly||0) ? l.monthly.toLocaleString() : '';
+    document.getElementById('addLoan_'+key).textContent = '수정 완료';
+    document.getElementById('cancelLoan_'+key).style.display = 'block';
   }
 
-  function cancelLoanEdit(bizType){
-    editingLoanIdx[bizType] = -1;
-    document.getElementById('loanInst_'+bizType).value='';
-    document.getElementById('loanAmt_'+bizType).value='';
-    document.getElementById('loanRate_'+bizType).value='';
-    document.getElementById('loanMonthly_'+bizType).value='';
-    document.getElementById('addLoan_'+bizType).textContent = '+ 대출 추가';
-    document.getElementById('cancelLoan_'+bizType).style.display = 'none';
+  function cancelLoanEdit(key){
+    editingLoanIdx[key] = -1;
+    const instEl = document.getElementById('loanInst_'+key);
+    if(!instEl) return;
+    instEl.value='';
+    document.getElementById('loanAmt_'+key).value='';
+    document.getElementById('loanRate_'+key).value='';
+    document.getElementById('loanMonthly_'+key).value='';
+    document.getElementById('addLoan_'+key).textContent = '+ 대출 추가';
+    document.getElementById('cancelLoan_'+key).style.display = 'none';
   }
 
-  ['existing','new'].forEach(bizType=>{
-    document.getElementById('loanAmt_'+bizType).addEventListener('input', (e)=> liveFormatNumber(e.target));
-    document.getElementById('loanRate_'+bizType).addEventListener('input', (e)=>{ e.target.value = e.target.value.replace(/[^0-9.]/g,''); });
-    document.getElementById('loanMonthly_'+bizType).addEventListener('input', (e)=> liveFormatNumber(e.target));
-    document.getElementById('cancelLoan_'+bizType).addEventListener('click', ()=> cancelLoanEdit(bizType));
-    document.getElementById('addLoan_'+bizType).addEventListener('click', ()=>{
-      const instEl = document.getElementById('loanInst_'+bizType);
-      const amtEl = document.getElementById('loanAmt_'+bizType);
-      const rateEl = document.getElementById('loanRate_'+bizType);
-      const monthlyEl = document.getElementById('loanMonthly_'+bizType);
+  // 대출 폼(기관/금액/이자율/월이자 직접기재 + 추가/취소 버튼)의 이벤트를 키 하나에 바인딩한다.
+  // 'new'는 페이지에 고정된 폼이라 처음 한 번만 호출하고, 기존사업자 쪽은 사업자별 폼을
+  // 매번 새로 그리므로 renderLoanSections에서 그릴 때마다 호출한다.
+  function bindLoanFormEvents(key){
+    document.getElementById('loanAmt_'+key).addEventListener('input', (e)=> liveFormatNumber(e.target));
+    document.getElementById('loanRate_'+key).addEventListener('input', (e)=>{ e.target.value = e.target.value.replace(/[^0-9.]/g,''); });
+    document.getElementById('loanMonthly_'+key).addEventListener('input', (e)=> liveFormatNumber(e.target));
+    document.getElementById('cancelLoan_'+key).addEventListener('click', ()=> cancelLoanEdit(key));
+    document.getElementById('addLoan_'+key).addEventListener('click', ()=>{
+      const instEl = document.getElementById('loanInst_'+key);
+      const amtEl = document.getElementById('loanAmt_'+key);
+      const rateEl = document.getElementById('loanRate_'+key);
+      const monthlyEl = document.getElementById('loanMonthly_'+key);
       const amount = numVal(amtEl.value);
       const rate = parseFloat(rateEl.value) || 0;
       const monthly = numVal(monthlyEl.value);
       if(!amount && !monthly && !instEl.value.trim()){ showToast('대출 정보를 입력해주세요'); return; }
       const loanRecord = { institution: instEl.value.trim(), amount, rate, monthly };
-      const idx = editingLoanIdx[bizType];
-      if(idx>=0 && idx<workingLoans[bizType].length){
-        workingLoans[bizType][idx] = loanRecord;
+      const idx = editingLoanIdx[key];
+      if(!workingLoans[key]) workingLoans[key] = [];
+      if(idx>=0 && idx<workingLoans[key].length){
+        workingLoans[key][idx] = loanRecord;
       } else {
-        workingLoans[bizType].push(loanRecord);
+        workingLoans[key].push(loanRecord);
       }
-      cancelLoanEdit(bizType);
-      renderLoanList(bizType);
+      cancelLoanEdit(key);
+      renderLoanList(key);
     });
-  });
+  }
+  bindLoanFormEvents('new');
+
+  // 기존사업자 대출 섹션을 사업자 수만큼 그린다 (사업자가 없으면 이름 없는 칸 1개).
+  function renderLoanSections(memberId){
+    const businesses = businessesForMember(memberId);
+    const keys = businesses.length ? businesses : [''];
+    const container = document.getElementById('loanSections_existing');
+    container.innerHTML = keys.map((bizName, idx)=>{
+      const key = 'existing_'+idx;
+      return `
+        <div class="loan-biz-section">
+          ${keys.length>1 ? `<div class="loan-biz-title">${bizName || '기존사업자'}</div>` : ''}
+          <div id="loanList_${key}"></div>
+          <div class="loan-form">
+            <div class="form-row">
+              <input class="input" id="loanInst_${key}" type="text" placeholder="대출 기관">
+            </div>
+            <div class="form-row">
+              <input class="input" id="loanAmt_${key}" type="text" inputmode="numeric" placeholder="대출금 총액">
+              <input class="input" id="loanRate_${key}" type="text" inputmode="decimal" placeholder="연 이자율(%)">
+            </div>
+            <div class="form-row">
+              <input class="input" id="loanMonthly_${key}" type="text" inputmode="numeric" placeholder="월 이자 직접 기재 (선택)">
+            </div>
+            <div class="loan-form-hint">입력하면 대출금×이자율 계산 대신 이 금액을 월 이자로 바로 사용해요</div>
+            <button class="add-btn" type="button" id="addLoan_${key}">+ 대출 추가</button>
+            <button class="loan-cancel-edit" type="button" id="cancelLoan_${key}" style="display:none;">취소</button>
+          </div>
+          <div class="loan-total-box">
+            <div class="margin-row"><span class="margin-label">총 대출금액</span><span class="margin-value" id="loanTotalAmt_${key}">0원</span></div>
+            <div class="margin-row"><span class="margin-label">총 이자 (연간)</span><span class="margin-value margin-rate" id="loanTotalInt_${key}">0원</span></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 이전 렌더에서 쓰던 기존사업자 키는 정리하고 새로 채운다.
+    Object.keys(loanKeyMeta).forEach(k=>{ if(loanKeyMeta[k].bizType==='existing'){ delete loanKeyMeta[k]; delete workingLoans[k]; delete editingLoanIdx[k]; } });
+    keys.forEach((bizName, idx)=>{
+      const key = 'existing_'+idx;
+      loanKeyMeta[key] = { bizType:'existing', bizName: bizName || '' };
+      workingLoans[key] = loansFor(memberId, 'existing', bizName).map(l=>({...l}));
+      editingLoanIdx[key] = -1;
+      bindLoanFormEvents(key);
+      renderLoanList(key);
+    });
+  }
 
   document.getElementById('backToAdminBtn').addEventListener('click', ()=>{
     hideAllScreens();
@@ -1872,11 +1933,9 @@
     document.getElementById('set_ex_dep').value = ex.depreciationAnnual ? ex.depreciationAnnual.toLocaleString() : '';
     document.getElementById('set_nw_dep').value = nw.depreciationAnnual ? nw.depreciationAnnual.toLocaleString() : '';
 
-    workingLoans.existing = loansFor(memberId, 'existing').map(l=>({...l}));
+    renderLoanSections(memberId);
     workingLoans.new = loansFor(memberId, 'new').map(l=>({...l}));
-    cancelLoanEdit('existing');
     cancelLoanEdit('new');
-    renderLoanList('existing');
     renderLoanList('new');
   }
 
@@ -1914,11 +1973,16 @@
 
   document.getElementById('saveMemberSettingsBtn').addEventListener('click', async ()=>{
     if(!viewingMemberId) return;
+    const loansByBiz = {};
+    Object.keys(loanKeyMeta).forEach(k=>{
+      const meta = loanKeyMeta[k];
+      if(meta.bizType==='existing'){ loansByBiz[meta.bizName||''] = workingLoans[k] || []; }
+    });
     const record = {
       memberId: viewingMemberId,
       existing: {
         depreciationAnnual: numVal(document.getElementById('set_ex_dep').value),
-        loans: workingLoans.existing
+        loansByBiz
       },
       new: {
         depreciationAnnual: numVal(document.getElementById('set_nw_dep').value),
