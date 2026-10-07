@@ -302,9 +302,11 @@
           </div>
         </div>
 
+        <div id="existingProfitPerBizList"></div>
+
         <div style="height:18px"></div>
         <div class="profit-block purple">
-          <div class="profit-label">기존사업자 이익</div>
+          <div class="profit-label">기존사업자 이익 (합계)</div>
           <div class="profit-formula" id="existingProfitFormula">매출 0원 - 원가비용 0원 = 수익 0원</div>
           <div class="profit-number" id="existingProfitNumber">0원</div>
         </div>
@@ -1039,6 +1041,19 @@
     document.getElementById('existingProfitFormula').textContent =
       `매출 ${b.totalExistingRevenueRaw.toLocaleString()}원 - 원가비용 ${b.totalExistingCost.toLocaleString()}원 - 신규사업자매입 ${b.totalCalc.toLocaleString()}원 = 수익`;
     document.getElementById('existingProfitNumber').textContent = b.totalExistingProfit.toLocaleString() + '원';
+
+    const perBizList = document.getElementById('existingProfitPerBizList');
+    if(b.businesses.length > 1){
+      perBizList.innerHTML = b.businesses.map(x=>`
+        <div class="profit-block purple" style="margin-top:10px;">
+          <div class="profit-label">${x.name || '기존사업자'} 이익</div>
+          <div class="profit-formula">매출 ${x.revenue.toLocaleString()}원 - 원가비용 ${x.cost.toLocaleString()}원 - 신규사업자매입 ${x.calcRevenue.toLocaleString()}원 = 수익</div>
+          <div class="profit-number">${x.profit.toLocaleString()}원</div>
+        </div>
+      `).join('');
+    } else {
+      perBizList.innerHTML = '';
+    }
 
     document.getElementById('newProfitFormula').textContent =
       `매출 ${b.totalNewRevenue.toLocaleString()}원 - 원가비용 ${b.costNew.toLocaleString()}원 = 수익`;
