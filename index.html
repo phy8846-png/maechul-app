@@ -220,9 +220,12 @@
   .issue-banner-label{font-size:12.5px; font-weight:700; color:var(--danger); margin-bottom:4px;}
   .issue-banner-amount{font-size:22px; font-weight:800; color:var(--danger);}
   .issue-banner-note{font-size:11px; color:var(--danger); margin-top:8px; opacity:.85; line-height:1.5;}
-  .issue-banner-perbiz{margin-top:10px; padding-top:10px; border-top:1px dashed rgba(199,90,66,.35);}
-  .issue-banner-biz-row{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; font-weight:700; color:var(--danger); padding:3px 0;}
-  .issue-banner-biz-row .biz-name{opacity:.8; font-weight:600;}
+  .issue-banner-biz-big{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:7px 0;}
+  .issue-banner-biz-big .biz-name{font-size:13.5px; font-weight:700; color:var(--danger); opacity:.85;}
+  .issue-banner-biz-big .biz-amt{font-size:20px; font-weight:800; color:var(--danger);}
+  .issue-banner-total-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-top:8px; padding-top:10px; border-top:1px dashed rgba(199,90,66,.35);}
+  .issue-banner-total-row .total-label{font-size:11.5px; font-weight:700; color:var(--danger); opacity:.7;}
+  .issue-banner-total-row .total-amt{font-size:14.5px; font-weight:800; color:var(--danger);}
   .modal-overlay{position:fixed; inset:0; background:rgba(43,38,32,.5); display:none; align-items:flex-end; justify-content:center; z-index:80;}
   .modal-overlay.show{display:flex;}
   .modal-sheet{background:#fff; width:100%; max-width:480px; border-radius:22px 22px 0 0; padding:26px 24px 32px; animation:slideUp .25s ease;}
@@ -968,18 +971,24 @@
     return biz ? (biz.calcRevenue||0) : 0;
   }
 
-  function renderIssueBannerPerBiz(businesses){
+  function renderIssueBannerPerBiz(businesses, totalAmount){
     const el = document.getElementById('issueBannerPerBiz');
     if(!el) return;
-    const list = (businesses||[]).filter(x=>x && x.calcRevenue>0);
     if(businesses && businesses.length > 1){
-      el.innerHTML = `<div class="issue-banner-perbiz">${businesses.map(x=>`
-        <div class="issue-banner-biz-row">
+      issueBannerAmount.style.display = 'none';
+      el.innerHTML = businesses.map(x=>`
+        <div class="issue-banner-biz-big">
           <span class="biz-name">${x.name || '기존사업자'}</span>
-          <span>${(x.calcRevenue||0).toLocaleString()}원</span>
+          <span class="biz-amt">${(x.calcRevenue||0).toLocaleString()}원</span>
         </div>
-      `).join('')}</div>`;
+      `).join('') + `
+        <div class="issue-banner-total-row">
+          <span class="total-label">합계</span>
+          <span class="total-amt">${(totalAmount||0).toLocaleString()}원</span>
+        </div>
+      `;
     } else {
+      issueBannerAmount.style.display = '';
       el.innerHTML = '';
     }
   }
@@ -1007,7 +1016,7 @@
     if(rec){
       issueBanner.style.display = 'block';
       issueBannerAmount.textContent = rec.newRevenue.toLocaleString() + '원';
-      renderIssueBannerPerBiz(rec.businesses);
+      renderIssueBannerPerBiz(rec.businesses, rec.newRevenue);
     } else {
       issueBanner.style.display = 'none';
       renderIssueBannerPerBiz(null);
@@ -1122,7 +1131,7 @@
     });
     issueBanner.style.display = 'block';
     issueBannerAmount.textContent = b.totalCalc.toLocaleString() + '원';
-    renderIssueBannerPerBiz(b.businesses);
+    renderIssueBannerPerBiz(b.businesses, b.totalCalc);
     showToast('저장되었습니다');
     await saveState();
     renderAll();
