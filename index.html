@@ -1265,6 +1265,24 @@
     return Math.round(annualTotal/12);
   }
 
+  // 월 문자열("2026-9")을 정렬 가능한 숫자로 변환 (9월과 10월 비교 버그 방지용)
+  function monthSortKey(m){
+    const parts = (m||'').split('-');
+    const y = parseInt(parts[0],10)||0;
+    const mo = parseInt(parts[1],10)||0;
+    return y*12+mo;
+  }
+  // 임대료/기계사용료처럼 매달 바뀌지 않는 값은, 해당 월에 기재된 값이 없으면
+  // 가장 최근 이전 월에 기재된 값을 그대로 가져와 기본값으로 보여준다 (기재칸에서 언제든 수정 가능)
+  function carryForwardFixedValue(memberId, bizType, fieldId, beforeMonth){
+    const cutoff = monthSortKey(beforeMonth);
+    const candidates = state.fixedCosts
+      .filter(f=> f.memberId===memberId && f.bizType===bizType && monthSortKey(f.month) < cutoff && f[fieldId])
+      .sort((a,b)=> monthSortKey(b.month) - monthSortKey(a.month));
+    return candidates.length ? candidates[0][fieldId] : 0;
+  }
+  const carryForwardFieldIds = ['fc_rent','fc_machine'];
+
   function openInterestModal(bizType){
     if(!currentUser || !currentUser.id) return;
     const loans = loansFor(currentUser.id, bizType);
@@ -1370,7 +1388,13 @@
       const el = document.getElementById('new__'+f.id);
       if(f.id==='fc_depreciation'){ el.value = autoDepreciationMonthly(currentUser.id,'new').toLocaleString(); }
       else if(f.id==='fc_interest'){ el.value = autoInterestMonthly(currentUser.id,'new').toLocaleString(); }
-      else { el.value = recNew && recNew[f.id] ? recNew[f.id].toLocaleString() : ''; }
+      else if(recNew && recNew[f.id]){ el.value = recNew[f.id].toLocaleString(); }
+      else if(carryForwardFieldIds.includes(f.id)){
+        // 이 달에 기재된 값이 없으면 직전 달 값을 기본으로 채워준다 (수정하면 이 달만 바뀜)
+        const carried = carryForwardFixedValue(currentUser.id, 'new', f.id, selectedMonth);
+        el.value = carried ? carried.toLocaleString() : '';
+      }
+      else { el.value = ''; }
     });
     updateFixedTotal('new');
   }
