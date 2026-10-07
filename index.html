@@ -220,6 +220,9 @@
   .issue-banner-label{font-size:12.5px; font-weight:700; color:var(--danger); margin-bottom:4px;}
   .issue-banner-amount{font-size:22px; font-weight:800; color:var(--danger);}
   .issue-banner-note{font-size:11px; color:var(--danger); margin-top:8px; opacity:.85; line-height:1.5;}
+  .issue-banner-perbiz{margin-top:10px; padding-top:10px; border-top:1px dashed rgba(199,90,66,.35);}
+  .issue-banner-biz-row{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; font-weight:700; color:var(--danger); padding:3px 0;}
+  .issue-banner-biz-row .biz-name{opacity:.8; font-weight:600;}
   .modal-overlay{position:fixed; inset:0; background:rgba(43,38,32,.5); display:none; align-items:flex-end; justify-content:center; z-index:80;}
   .modal-overlay.show{display:flex;}
   .modal-sheet{background:#fff; width:100%; max-width:480px; border-radius:22px 22px 0 0; padding:26px 24px 32px; animation:slideUp .25s ease;}
@@ -278,6 +281,7 @@
       <div class="issue-banner" id="issueBanner" style="display:none;">
         <div class="issue-banner-label" id="issueBannerLabel">신규사업자가 기존사업자에 발행할 금액</div>
         <div class="issue-banner-amount" id="issueBannerAmount">0원</div>
+        <div id="issueBannerPerBiz"></div>
         <div class="issue-banner-note">* 발행 시 '제조가공비'로 발행, 수량은 1로 하세요</div>
       </div>
 
@@ -964,6 +968,22 @@
     return biz ? (biz.calcRevenue||0) : 0;
   }
 
+  function renderIssueBannerPerBiz(businesses){
+    const el = document.getElementById('issueBannerPerBiz');
+    if(!el) return;
+    const list = (businesses||[]).filter(x=>x && x.calcRevenue>0);
+    if(businesses && businesses.length > 1){
+      el.innerHTML = `<div class="issue-banner-perbiz">${businesses.map(x=>`
+        <div class="issue-banner-biz-row">
+          <span class="biz-name">${x.name || '기존사업자'}</span>
+          <span>${(x.calcRevenue||0).toLocaleString()}원</span>
+        </div>
+      `).join('')}</div>`;
+    } else {
+      el.innerHTML = '';
+    }
+  }
+
   function loadEntryFormForMonth(){
     if(!currentUser || !currentUser.id) return;
     document.getElementById('issueBannerLabel').textContent = currentMonthLabel() + '분 신규사업자가 기존사업자에 발행할 금액';
@@ -987,8 +1007,10 @@
     if(rec){
       issueBanner.style.display = 'block';
       issueBannerAmount.textContent = rec.newRevenue.toLocaleString() + '원';
+      renderIssueBannerPerBiz(rec.businesses);
     } else {
       issueBanner.style.display = 'none';
+      renderIssueBannerPerBiz(null);
     }
     updateAutoCost();
   }
@@ -1100,6 +1122,7 @@
     });
     issueBanner.style.display = 'block';
     issueBannerAmount.textContent = b.totalCalc.toLocaleString() + '원';
+    renderIssueBannerPerBiz(b.businesses);
     showToast('저장되었습니다');
     await saveState();
     renderAll();
