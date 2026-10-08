@@ -2075,7 +2075,37 @@
       clearSession();
       showLogin();
     }
+    startLiveSync();
   })();
+
+  // 다른 PC/탭에서 저장한 내용을 실시간으로 반영한다. (예전엔 페이지를 열 때 한 번만
+  // 읽어서, 동시에 접속한 다른 쪽에서 기재한 내용이 새로고침 전까지 안 보였다.)
+  // 입력 중인 칸이 있으면 타이핑하던 값이 지워지지 않도록 폼은 건드리지 않고 목록만 갱신한다.
+  function startLiveSync(){
+    stateDocRef.onSnapshot((snap)=>{
+      if(!snap.exists || snap.metadata.hasPendingWrites) return;
+      const d = snap.data();
+      const next = {
+        members: d.members || [], entries: d.entries || [],
+        fixedCosts: d.fixedCosts || [], adminSettings: d.adminSettings || []
+      };
+      if(JSON.stringify(next) === JSON.stringify(state)) return;
+      state.members = next.members; state.entries = next.entries;
+      state.fixedCosts = next.fixedCosts; state.adminSettings = next.adminSettings;
+      dataLoadConfirmed = true;
+      const ae = document.activeElement;
+      const typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName);
+      try{
+        if(adminScreen.classList.contains('active')){ renderAdmin(); }
+        else if(memberDetailScreen.classList.contains('active')){ if(!typing && viewingMemberId) showMemberDetail(viewingMemberId); }
+        else if(mainScreen.classList.contains('active') && currentUser && currentUser.id){
+          renderAll(); renderFixedList();
+          if(!typing){ loadFixedFormForMonth(); loadEntryFormForMonth(); }
+        }
+      }catch(e){ console.error('실시간 반영 실패', e); }
+      showToast(typing ? '다른 곳에서 데이터가 변경됐어요 (입력 후 저장하면 최신 기준으로 반영돼요)' : '다른 곳에서 변경된 내용을 반영했어요');
+    }, (e)=> console.error('실시간 동기화 오류', e));
+  }
 })();
 </script>
 </body>
